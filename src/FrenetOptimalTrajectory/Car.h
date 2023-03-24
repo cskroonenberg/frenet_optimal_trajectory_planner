@@ -8,9 +8,9 @@
 
 using namespace std;
 
-// Lincoln MKZ configuration
-const double VEHICLE_LENGTH = 4.93;
-const double VEHICLE_WIDTH = 1.86;
+// AWS DeepRacer configuration
+const double VEHICLE_LENGTH = 0.3;
+const double VEHICLE_WIDTH = 0.2;
 
 class Car {
 public:
