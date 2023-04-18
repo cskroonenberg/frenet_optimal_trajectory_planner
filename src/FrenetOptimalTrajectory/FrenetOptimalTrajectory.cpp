@@ -50,13 +50,15 @@ FrenetOptimalTrajectory::FrenetOptimalTrajectory(
     }
 
     // select the best path
-    double mincost = INFINITY;
-    for (FrenetPath *fp : frenet_paths) {
-        if (fp->cf <= mincost) {
-            mincost = fp->cf;
-            best_frenet_path = fp;
-        }
-    }
+    // BEST PATH SELECTION IS NOW DONE DURING PATH GENERATION
+    //double mincost = INFINITY;
+    //for (FrenetPath *fp : frenet_paths) {
+    //    if (fp->cf <= mincost) {
+    //        mincost = fp->cf;
+    //        best_frenet_path = fp;
+    //    }
+    //}
+
     auto end = chrono::high_resolution_clock::now();
     double run_time =
         chrono::duration_cast<chrono::nanoseconds>(end - start).count();
@@ -131,6 +133,8 @@ void FrenetOptimalTrajectory::calc_frenet_paths(int start_di_index,
     FrenetPath *fp, *tfp;
     int num_paths = 0;
     int num_viable_paths = 0;
+
+    best_frenet_path = nullptr;
     // double valid_path_time = 0;
 
     // initialize di, with start_di_index
@@ -138,6 +142,8 @@ void FrenetOptimalTrajectory::calc_frenet_paths(int start_di_index,
 
     // generate path to each offset goal
     // note di goes up to but not including end_di_index*fot_hp->d_road_w
+    double mincost = INFINITY;
+
     while ((di < -fot_hp->max_road_width_l + end_di_index * fot_hp->d_road_w) &&
            (di <= fot_hp->max_road_width_r)) {
         ti = fot_hp->mint;
@@ -250,6 +256,25 @@ void FrenetOptimalTrajectory::calc_frenet_paths(int start_di_index,
                           fot_hp->klon * tfp->c_longitudinal +
                           fot_hp->ko * tfp->c_inv_dist_to_obstacles;
 
+                // Check if path is best available path
+                if (tfp->cf <= mincost) {
+                    mincost = tfp->cf;
+                    if(multithreaded) { // Acquire mutex if multithreaded
+                        mu->lock();
+                        if(best_frenet_path == nullptr || mincost < best_frenet_path->cf) { // Check path is best across all threads
+                            best_frenet_path = tfp;
+                        }
+                        mu->unlock();
+                    } else {
+                        best_frenet_path = tfp;
+                    }
+                } else {
+                    delete tfp;
+                    tv += fot_hp->d_t_s;
+                    continue;
+                }
+
+                /*
                 if (multithreaded) {
                     // added mutex lock to prevent threads competing to write to
                     // frenet_path
@@ -259,6 +284,7 @@ void FrenetOptimalTrajectory::calc_frenet_paths(int start_di_index,
                 } else {
                     frenet_paths.push_back(tfp);
                 }
+                */
 
                 tv += fot_hp->d_t_s;
             }
